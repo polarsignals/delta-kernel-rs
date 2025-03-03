@@ -377,6 +377,50 @@ impl ArrayType {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct DictionaryType {
+    #[serde(rename = "type")]
+    pub type_name: String,
+    /// The type of element used for the indicies of this dictionary
+    pub index_type: DataType,
+    /// The type of element used for the values of this dictionary
+    pub value_type: DataType,
+    /// Denoting whether this dictionary can contain one or more null values
+    #[serde(default = "default_true")]
+    pub value_contains_null: bool,
+}
+
+impl DictionaryType {
+    pub fn new(
+        index_type: impl Into<DataType>,
+        value_type: impl Into<DataType>,
+        value_contains_null: bool,
+    ) -> Self {
+        Self {
+            type_name: "dictionary".into(),
+            index_type: index_type.into(),
+            value_type: value_type.into(),
+            value_contains_null,
+        }
+    }
+
+    #[inline]
+    pub const fn key_type(&self) -> &DataType {
+        &self.index_type
+    }
+
+    #[inline]
+    pub const fn value_type(&self) -> &DataType {
+        &self.value_type
+    }
+
+    #[inline]
+    pub const fn value_contains_null(&self) -> bool {
+        self.value_contains_null
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct MapType {
     #[serde(rename = "type")]
     pub type_name: String,
@@ -534,6 +578,8 @@ pub enum DataType {
     /// A map stores an arbitrary length collection of key-value pairs
     /// with a single keyType and a single valueType
     Map(Box<MapType>),
+    /// A dictionary stores a dictionary encoded column
+    Dictionary(Box<DictionaryType>),
 }
 
 impl From<PrimitiveType> for DataType {
@@ -562,6 +608,12 @@ impl From<ArrayType> for DataType {
 impl From<SchemaRef> for DataType {
     fn from(schema: SchemaRef) -> Self {
         Arc::unwrap_or_clone(schema).into()
+    }
+}
+
+impl From<DictionaryType> for DataType {
+    fn from(dict_type: DictionaryType) -> Self {
+        DataType::Dictionary(Box::new(dict_type))
     }
 }
 
@@ -626,6 +678,7 @@ impl Display for DataType {
                 write!(f, ">")
             }
             DataType::Map(m) => write!(f, "map<{}, {}>", m.key_type, m.value_type),
+            DataType::Dictionary(d) => write!(f, "dictionary<{}, {}>", d.index_type, d.value_type),
         }
     }
 }
@@ -696,6 +749,25 @@ pub trait SchemaTransform<'a> {
         self.transform(etype)
     }
 
+    fn transform_dictionary(
+        &mut self,
+        dtype: &'a DictionaryType,
+    ) -> Option<Cow<'a, DictionaryType>> {
+        self.transform(&dtype.index_type)
+            .and_then(|key_type| {
+                self.transform(&dtype.value_type)
+                    .map(|value_type| (key_type, value_type))
+            })
+            .map(|(key_type, value_type)| {
+                Cow::Owned(DictionaryType {
+                    type_name: dtype.type_name.clone(),
+                    index_type: key_type.into_owned(),
+                    value_type: value_type.into_owned(),
+                    value_contains_null: dtype.value_contains_null,
+                })
+            })
+    }
+
     /// General entry point for a recursive traversal over any data type. Also invoked internally to
     /// dispatch on nested data types encountered during the traversal.
     fn transform(&mut self, data_type: &'a DataType) -> Option<Cow<'a, DataType>> {
@@ -717,6 +789,7 @@ pub trait SchemaTransform<'a> {
             Array(atype) => apply_transform!(transform_array, atype),
             Struct(stype) => apply_transform!(transform_struct, stype),
             Map(mtype) => apply_transform!(transform_map, mtype),
+            Dictionary(dtype) => apply_transform!(transform_dictionary, dtype),
         }
     }
 

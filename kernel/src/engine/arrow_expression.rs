@@ -127,6 +127,7 @@ impl Scalar {
                     Arc::new(ListArray::new_null(Arc::new(field), num_rows))
                 }
                 DataType::Map { .. } => unimplemented!(),
+                DataType::Dictionary(_t) => unimplemented!(),
             },
         };
         Ok(arr)
