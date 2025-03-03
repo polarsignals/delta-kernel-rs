@@ -11,7 +11,8 @@ use itertools::Itertools;
 
 use crate::error::Error;
 use crate::schema::{
-    ArrayType, DataType, MapType, MetadataValue, PrimitiveType, StructField, StructType,
+    ArrayType, DataType, DictionaryType, MapType, MetadataValue, PrimitiveType, StructField,
+    StructType,
 };
 
 pub(crate) const LIST_ARRAY_ROOT: &str = "element";
@@ -91,6 +92,17 @@ impl TryFrom<&MapType> for ArrowField {
     }
 }
 
+impl TryFrom<&DictionaryType> for ArrowDataType {
+    type Error = ArrowError;
+
+    fn try_from(d: &DictionaryType) -> Result<Self, ArrowError> {
+        Ok(ArrowDataType::Dictionary(
+            Box::new(d.key_type().try_into()?),
+            Box::new(d.value_type().try_into()?),
+        ))
+    }
+}
+
 impl TryFrom<&DataType> for ArrowDataType {
     type Error = ArrowError;
 
@@ -134,6 +146,15 @@ impl TryFrom<&DataType> for ArrowDataType {
             )),
             DataType::Array(a) => Ok(ArrowDataType::List(Arc::new(a.as_ref().try_into()?))),
             DataType::Map(m) => Ok(ArrowDataType::Map(Arc::new(m.as_ref().try_into()?), false)),
+            DataType::Dictionary(d) => {
+                let key_type = ArrowDataType::try_from(d.key_type())?;
+                let value_type = ArrowDataType::try_from(d.value_type())?;
+
+                Ok(ArrowDataType::Dictionary(
+                    Box::new(key_type),
+                    Box::new(value_type),
+                ))
+            }
         }
     }
 }
@@ -240,9 +261,11 @@ impl TryFrom<&ArrowDataType> for DataType {
                     panic!("DataType::Map should contain a struct field child");
                 }
             }
-            // Dictionary types are just an optimized in-memory representation of an array.
-            // Schema-wise, they are the same as the value type.
-            ArrowDataType::Dictionary(_, value_type) => Ok(value_type.as_ref().try_into()?),
+            ArrowDataType::Dictionary(key_type, value_type) => {
+                let key_type = DataType::try_from(&**key_type)?;
+                let value_type = DataType::try_from(&**value_type)?;
+                Ok(DictionaryType::new(key_type, value_type, true).into())
+            }
             s => Err(ArrowError::SchemaError(format!(
                 "Invalid data type for Delta Lake: {s}"
             ))),

@@ -76,6 +76,14 @@ impl EnsureDataTypes {
                 )?;
                 self.ensure_data_types(&inner_type.element_type, arrow_list_field.data_type())
             }
+            (
+                DataType::Dictionary(kernel_dictionary_type),
+                ArrowDataType::Dictionary(arrow_index_type, arrow_value_type),
+            ) => {
+                self.ensure_data_types(&kernel_dictionary_type.index_type, arrow_index_type)?;
+                self.ensure_data_types(&kernel_dictionary_type.value_type, arrow_value_type)?;
+                Ok(DataTypeCompat::Nested)
+            }
             (DataType::Map(kernel_map_type), ArrowDataType::Map(arrow_map_type, _)) => {
                 let ArrowDataType::Struct(fields) = arrow_map_type.data_type() else {
                     return Err(make_arrow_error("Arrow map type wasn't a struct."));
@@ -85,7 +93,7 @@ impl EnsureDataTypes {
                         "Arrow map type didn't have expected key/value fields",
                     ));
                 };
-                self.ensure_data_types(&kernel_map_type.key_type, key_type.data_type())?;
+                self.ensure_data_types(&kernel_map_type.key_type(), key_type.data_type())?;
                 self.ensure_nullability(
                     "Map",
                     kernel_map_type.value_contains_null,
