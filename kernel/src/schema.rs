@@ -482,12 +482,20 @@ pub enum PrimitiveType {
     String,
     /// i64: 8-byte signed integer. Range: -9223372036854775808 to 9223372036854775807
     Long,
+    /// u64: 8-byte unsigned integer. Range: 0 to 18446744073709551615
+    ULong,
     /// i32: 4-byte signed integer. Range: -2147483648 to 2147483647
     Integer,
+    /// u32: 4-byte unsigned integer. Range: 0 to 4294967295
+    UInteger,
     /// i16: 2-byte signed integer numbers. Range: -32768 to 32767
     Short,
+    /// u16: 2-byte unsigned integer numbers. Range: 0 to 65535
+    UShort,
     /// i8: 1-byte signed integer number. Range: -128 to 127
     Byte,
+    /// u8: 1-byte unsigned integer number. Range: 0 to 255
+    UByte,
     /// f32: 4-byte single-precision floating-point numbers
     Float,
     /// f64: 8-byte double-precision floating-point numbers
@@ -548,9 +556,13 @@ impl Display for PrimitiveType {
         match self {
             PrimitiveType::String => write!(f, "string"),
             PrimitiveType::Long => write!(f, "long"),
+            PrimitiveType::ULong => write!(f, "ulong"),
             PrimitiveType::Integer => write!(f, "integer"),
+            PrimitiveType::UInteger => write!(f, "uinteger"),
             PrimitiveType::Short => write!(f, "short"),
+            PrimitiveType::UShort => write!(f, "ushort"),
             PrimitiveType::Byte => write!(f, "byte"),
+            PrimitiveType::UByte => write!(f, "ubyte"),
             PrimitiveType::Float => write!(f, "float"),
             PrimitiveType::Double => write!(f, "double"),
             PrimitiveType::Boolean => write!(f, "boolean"),
@@ -621,9 +633,13 @@ impl From<DictionaryType> for DataType {
 impl DataType {
     pub const STRING: Self = DataType::Primitive(PrimitiveType::String);
     pub const LONG: Self = DataType::Primitive(PrimitiveType::Long);
+    pub const ULONG: Self = DataType::Primitive(PrimitiveType::ULong);
     pub const INTEGER: Self = DataType::Primitive(PrimitiveType::Integer);
+    pub const UINTEGER: Self = DataType::Primitive(PrimitiveType::UInteger);
     pub const SHORT: Self = DataType::Primitive(PrimitiveType::Short);
+    pub const USHORT: Self = DataType::Primitive(PrimitiveType::UShort);
     pub const BYTE: Self = DataType::Primitive(PrimitiveType::Byte);
+    pub const UBYTE: Self = DataType::Primitive(PrimitiveType::UByte);
     pub const FLOAT: Self = DataType::Primitive(PrimitiveType::Float);
     pub const DOUBLE: Self = DataType::Primitive(PrimitiveType::Double);
     pub const BOOLEAN: Self = DataType::Primitive(PrimitiveType::Boolean);

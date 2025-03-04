@@ -1,8 +1,10 @@
 //! An implementation of parquet row group skipping using data skipping predicates over footer stats.
+use crate::expressions::{
+    BinaryExpression, ColumnName, Expression, Scalar, UnaryExpression, VariadicExpression,
+};
 use crate::predicates::parquet_stats_skipping::{
     ParquetStatsProvider, ParquetStatsSkippingFilter as _,
 };
-use crate::expressions::{ColumnName, Expression, Scalar, UnaryExpression, BinaryExpression, VariadicExpression};
 use crate::schema::{DataType, PrimitiveType};
 use chrono::{DateTime, Days};
 use parquet::arrow::arrow_reader::ArrowReaderBuilder;
@@ -104,12 +106,21 @@ impl ParquetStatsProvider for RowGroupFilter<'_> {
             (Long, Statistics::Int64(s)) => s.min_opt()?.into(),
             (Long, Statistics::Int32(s)) => (*s.min_opt()? as i64).into(),
             (Long, _) => return None,
+            (ULong, Statistics::Int64(s)) => s.min_opt()?.into(),
+            (ULong, Statistics::Int32(s)) => (*s.min_opt()? as i64).into(),
+            (ULong, _) => return None,
             (Integer, Statistics::Int32(s)) => s.min_opt()?.into(),
             (Integer, _) => return None,
+            (UInteger, Statistics::Int32(s)) => s.min_opt()?.into(),
+            (UInteger, _) => return None,
             (Short, Statistics::Int32(s)) => (*s.min_opt()? as i16).into(),
             (Short, _) => return None,
+            (UShort, Statistics::Int32(s)) => (*s.min_opt()? as i16).into(),
+            (UShort, _) => return None,
             (Byte, Statistics::Int32(s)) => (*s.min_opt()? as i8).into(),
             (Byte, _) => return None,
+            (UByte, Statistics::Int32(s)) => (*s.min_opt()? as i8).into(),
+            (UByte, _) => return None,
             (Float, Statistics::Float(s)) => s.min_opt()?.into(),
             (Float, _) => return None,
             (Double, Statistics::Double(s)) => s.min_opt()?.into(),
@@ -146,12 +157,21 @@ impl ParquetStatsProvider for RowGroupFilter<'_> {
             (Long, Statistics::Int64(s)) => s.max_opt()?.into(),
             (Long, Statistics::Int32(s)) => (*s.max_opt()? as i64).into(),
             (Long, _) => return None,
+            (ULong, Statistics::Int64(s)) => s.max_opt()?.into(),
+            (ULong, Statistics::Int32(s)) => (*s.max_opt()? as i64).into(),
+            (ULong, _) => return None,
             (Integer, Statistics::Int32(s)) => s.max_opt()?.into(),
             (Integer, _) => return None,
+            (UInteger, Statistics::Int32(s)) => s.max_opt()?.into(),
+            (UInteger, _) => return None,
             (Short, Statistics::Int32(s)) => (*s.max_opt()? as i16).into(),
             (Short, _) => return None,
+            (UShort, Statistics::Int32(s)) => (*s.max_opt()? as i16).into(),
+            (UShort, _) => return None,
             (Byte, Statistics::Int32(s)) => (*s.max_opt()? as i8).into(),
             (Byte, _) => return None,
+            (UByte, Statistics::Int32(s)) => (*s.max_opt()? as i8).into(),
+            (UByte, _) => return None,
             (Float, Statistics::Float(s)) => s.max_opt()?.into(),
             (Float, _) => return None,
             (Double, Statistics::Double(s)) => s.max_opt()?.into(),
@@ -232,7 +252,9 @@ pub(crate) fn compute_field_indices(
             Column(name) => cols.extend([name.clone()]), // returns `()`, unlike `insert`
             Struct(fields) => fields.iter().for_each(recurse),
             Unary(UnaryExpression { expr, .. }) => recurse(expr),
-            Binary(BinaryExpression { left, right, .. }) => [left, right].iter().for_each(|e| recurse(e)),
+            Binary(BinaryExpression { left, right, .. }) => {
+                [left, right].iter().for_each(|e| recurse(e))
+            }
             Variadic(VariadicExpression { exprs, .. }) => exprs.iter().for_each(recurse),
         }
     }

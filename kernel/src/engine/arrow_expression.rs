@@ -10,7 +10,8 @@ use arrow_array::{types::*, MapArray};
 use arrow_array::{
     Array, ArrayRef, BinaryArray, BooleanArray, Date32Array, Datum, Decimal128Array, Float32Array,
     Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, ListArray, RecordBatch,
-    StringArray, StructArray, TimestampMicrosecondArray,
+    StringArray, StructArray, TimestampMicrosecondArray, UInt16Array, UInt32Array, UInt64Array,
+    UInt8Array,
 };
 use arrow_buffer::OffsetBuffer;
 use arrow_ord::cmp::{distinct, eq, gt, gt_eq, lt, lt_eq, neq};
@@ -49,9 +50,13 @@ impl Scalar {
         use Scalar::*;
         let arr: ArrayRef = match self {
             Integer(val) => Arc::new(Int32Array::from_value(*val, num_rows)),
+            UInteger(val) => Arc::new(UInt32Array::from_value(*val, num_rows)),
             Long(val) => Arc::new(Int64Array::from_value(*val, num_rows)),
+            ULong(val) => Arc::new(UInt64Array::from_value(*val, num_rows)),
             Short(val) => Arc::new(Int16Array::from_value(*val, num_rows)),
+            UShort(val) => Arc::new(UInt16Array::from_value(*val, num_rows)),
             Byte(val) => Arc::new(Int8Array::from_value(*val, num_rows)),
+            UByte(val) => Arc::new(UInt8Array::from_value(*val, num_rows)),
             Float(val) => Arc::new(Float32Array::from_value(*val, num_rows)),
             Double(val) => Arc::new(Float64Array::from_value(*val, num_rows)),
             String(val) => Arc::new(StringArray::from(vec![val.clone(); num_rows])),
@@ -97,9 +102,13 @@ impl Scalar {
             Null(data_type) => match data_type {
                 DataType::Primitive(primitive) => match primitive {
                     PrimitiveType::Byte => Arc::new(Int8Array::new_null(num_rows)),
+                    PrimitiveType::UByte => Arc::new(UInt8Array::new_null(num_rows)),
                     PrimitiveType::Short => Arc::new(Int16Array::new_null(num_rows)),
+                    PrimitiveType::UShort => Arc::new(UInt16Array::new_null(num_rows)),
                     PrimitiveType::Integer => Arc::new(Int32Array::new_null(num_rows)),
+                    PrimitiveType::UInteger => Arc::new(UInt32Array::new_null(num_rows)),
                     PrimitiveType::Long => Arc::new(Int64Array::new_null(num_rows)),
+                    PrimitiveType::ULong => Arc::new(UInt64Array::new_null(num_rows)),
                     PrimitiveType::Float => Arc::new(Float32Array::new_null(num_rows)),
                     PrimitiveType::Double => Arc::new(Float64Array::new_null(num_rows)),
                     PrimitiveType::String => Arc::new(StringArray::new_null(num_rows)),
