@@ -112,9 +112,13 @@ impl TryFrom<&DataType> for ArrowDataType {
                 match p {
                     PrimitiveType::String => Ok(ArrowDataType::Utf8),
                     PrimitiveType::Long => Ok(ArrowDataType::Int64), // undocumented type
+                    PrimitiveType::ULong => Ok(ArrowDataType::UInt64),
                     PrimitiveType::Integer => Ok(ArrowDataType::Int32),
+                    PrimitiveType::UInteger => Ok(ArrowDataType::UInt32),
                     PrimitiveType::Short => Ok(ArrowDataType::Int16),
+                    PrimitiveType::UShort => Ok(ArrowDataType::UInt16),
                     PrimitiveType::Byte => Ok(ArrowDataType::Int8),
+                    PrimitiveType::UByte => Ok(ArrowDataType::UInt8),
                     PrimitiveType::Float => Ok(ArrowDataType::Float32),
                     PrimitiveType::Double => Ok(ArrowDataType::Float64),
                     PrimitiveType::Boolean => Ok(ArrowDataType::Boolean),
@@ -202,13 +206,13 @@ impl TryFrom<&ArrowDataType> for DataType {
             ArrowDataType::LargeUtf8 => Ok(DataType::STRING),
             ArrowDataType::Utf8View => Ok(DataType::STRING),
             ArrowDataType::Int64 => Ok(DataType::LONG), // undocumented type
+            ArrowDataType::UInt64 => Ok(DataType::ULONG),
             ArrowDataType::Int32 => Ok(DataType::INTEGER),
+            ArrowDataType::UInt32 => Ok(DataType::UINTEGER),
             ArrowDataType::Int16 => Ok(DataType::SHORT),
+            ArrowDataType::UInt16 => Ok(DataType::USHORT),
             ArrowDataType::Int8 => Ok(DataType::BYTE),
-            ArrowDataType::UInt64 => Ok(DataType::LONG), // undocumented type
-            ArrowDataType::UInt32 => Ok(DataType::INTEGER),
-            ArrowDataType::UInt16 => Ok(DataType::SHORT),
-            ArrowDataType::UInt8 => Ok(DataType::BYTE),
+            ArrowDataType::UInt8 => Ok(DataType::UBYTE),
             ArrowDataType::Float32 => Ok(DataType::FLOAT),
             ArrowDataType::Float64 => Ok(DataType::DOUBLE),
             ArrowDataType::Boolean => Ok(DataType::BOOLEAN),
