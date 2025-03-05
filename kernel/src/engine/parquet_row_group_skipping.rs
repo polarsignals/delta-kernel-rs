@@ -135,6 +135,8 @@ impl ParquetStatsProvider for RowGroupFilter<'_> {
             (Date, _) => return None,
             (Timestamp, Statistics::Int64(s)) => Scalar::Timestamp(*s.min_opt()?),
             (Timestamp, _) => return None, // TODO: Int96 timestamps
+            (TimestampNs, Statistics::Int64(s)) => Scalar::TimestampNs(*s.min_opt()?),
+            (TimestampNs, _) => return None,
             (TimestampNtz, Statistics::Int64(s)) => Scalar::TimestampNtz(*s.min_opt()?),
             (TimestampNtz, Statistics::Int32(s)) => Self::timestamp_from_date(s.min_opt())?,
             (TimestampNtz, _) => return None, // TODO: Int96 timestamps
@@ -186,6 +188,8 @@ impl ParquetStatsProvider for RowGroupFilter<'_> {
             (Date, _) => return None,
             (Timestamp, Statistics::Int64(s)) => Scalar::Timestamp(*s.max_opt()?),
             (Timestamp, _) => return None, // TODO: Int96 timestamps
+            (TimestampNs, Statistics::Int64(s)) => Scalar::TimestampNs(*s.max_opt()?),
+            (TimestampNs, _) => return None, // TODO: Int96 timestamps
             (TimestampNtz, Statistics::Int64(s)) => Scalar::TimestampNtz(*s.max_opt()?),
             (TimestampNtz, Statistics::Int32(s)) => Self::timestamp_from_date(s.max_opt())?,
             (TimestampNtz, _) => return None, // TODO: Int96 timestamps

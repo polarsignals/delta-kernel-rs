@@ -10,8 +10,8 @@ use arrow_array::{types::*, MapArray};
 use arrow_array::{
     Array, ArrayRef, BinaryArray, BooleanArray, Date32Array, Datum, Decimal128Array, Float32Array,
     Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, ListArray, RecordBatch,
-    StringArray, StructArray, TimestampMicrosecondArray, UInt16Array, UInt32Array, UInt64Array,
-    UInt8Array,
+    StringArray, StructArray, TimestampMicrosecondArray, TimestampNanosecondArray, UInt16Array,
+    UInt32Array, UInt64Array, UInt8Array,
 };
 use arrow_buffer::OffsetBuffer;
 use arrow_ord::cmp::{distinct, eq, gt, gt_eq, lt, lt_eq, neq};
@@ -64,6 +64,9 @@ impl Scalar {
             Timestamp(val) => {
                 Arc::new(TimestampMicrosecondArray::from_value(*val, num_rows).with_timezone("UTC"))
             }
+            TimestampNs(val) => {
+                Arc::new(TimestampNanosecondArray::from_value(*val, num_rows).with_timezone("UTC"))
+            }
             TimestampNtz(val) => Arc::new(TimestampMicrosecondArray::from_value(*val, num_rows)),
             Date(val) => Arc::new(Date32Array::from_value(*val, num_rows)),
             Binary(val) => Arc::new(BinaryArray::from(vec![val.as_slice(); num_rows])),
@@ -115,6 +118,9 @@ impl Scalar {
                     PrimitiveType::Boolean => Arc::new(BooleanArray::new_null(num_rows)),
                     PrimitiveType::Timestamp => {
                         Arc::new(TimestampMicrosecondArray::new_null(num_rows).with_timezone("UTC"))
+                    }
+                    PrimitiveType::TimestampNs => {
+                        Arc::new(TimestampNanosecondArray::new_null(num_rows).with_timezone("UTC"))
                     }
                     PrimitiveType::TimestampNtz => {
                         Arc::new(TimestampMicrosecondArray::new_null(num_rows))
