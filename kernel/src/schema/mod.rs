@@ -596,6 +596,8 @@ pub enum PrimitiveType {
     Date,
     /// Microsecond precision timestamp, adjusted to UTC.
     Timestamp,
+    /// Nanosecond precision timestamp, adjusted to UTC.
+    TimestampNs,
     #[serde(rename = "timestamp_ntz")]
     TimestampNtz,
     #[serde(
@@ -663,6 +665,7 @@ impl Display for PrimitiveType {
             PrimitiveType::Binary => write!(f, "binary"),
             PrimitiveType::Date => write!(f, "date"),
             PrimitiveType::Timestamp => write!(f, "timestamp"),
+            PrimitiveType::TimestampNs => write!(f, "timestamp_ns"),
             PrimitiveType::TimestampNtz => write!(f, "timestamp_ntz"),
             PrimitiveType::Decimal(dtype) => {
                 write!(f, "decimal({},{})", dtype.precision(), dtype.scale())
@@ -750,6 +753,7 @@ impl DataType {
     pub const BINARY: Self = DataType::Primitive(PrimitiveType::Binary);
     pub const DATE: Self = DataType::Primitive(PrimitiveType::Date);
     pub const TIMESTAMP: Self = DataType::Primitive(PrimitiveType::Timestamp);
+    pub const TIMESTAMP_NS: Self = DataType::Primitive(PrimitiveType::TimestampNs);
     pub const TIMESTAMP_NTZ: Self = DataType::Primitive(PrimitiveType::TimestampNtz);
 
     pub fn decimal(precision: u8, scale: u8) -> DeltaResult<Self> {

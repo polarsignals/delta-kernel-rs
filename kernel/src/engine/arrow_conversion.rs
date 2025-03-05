@@ -137,6 +137,10 @@ impl TryFrom<&DataType> for ArrowDataType {
                         TimeUnit::Microsecond,
                         Some("UTC".into()),
                     )),
+                    PrimitiveType::TimestampNs => Ok(ArrowDataType::Timestamp(
+                        TimeUnit::Nanosecond,
+                        Some("UTC".into()),
+                    )),
                     PrimitiveType::TimestampNtz => {
                         Ok(ArrowDataType::Timestamp(TimeUnit::Microsecond, None))
                     }
@@ -236,6 +240,12 @@ impl TryFrom<&ArrowDataType> for DataType {
                 if tz.eq_ignore_ascii_case("utc") =>
             {
                 Ok(DataType::TIMESTAMP)
+            }
+            ArrowDataType::Timestamp(TimeUnit::Nanosecond, None) => Ok(DataType::TIMESTAMP_NS),
+            ArrowDataType::Timestamp(TimeUnit::Nanosecond, Some(tz))
+                if tz.eq_ignore_ascii_case("utc") =>
+            {
+                Ok(DataType::TIMESTAMP_NS)
             }
             ArrowDataType::Struct(fields) => {
                 DataType::try_struct_type(fields.iter().map(|field| field.as_ref().try_into()))

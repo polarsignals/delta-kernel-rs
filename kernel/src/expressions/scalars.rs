@@ -163,6 +163,8 @@ pub enum Scalar {
     Boolean(bool),
     /// Microsecond precision timestamp, adjusted to UTC.
     Timestamp(i64),
+    // Nanosecond precision timestamp, adjusted to UTC.
+    TimestampNs(i64),
     /// Microsecond precision timestamp, with no timezone.
     TimestampNtz(i64),
     /// Date stored as a signed 32bit int days since UNIX epoch 1970-01-01
@@ -195,6 +197,7 @@ impl Scalar {
             Self::String(_) => DataType::STRING,
             Self::Boolean(_) => DataType::BOOLEAN,
             Self::Timestamp(_) => DataType::TIMESTAMP,
+            Self::TimestampNs(_) => DataType::TIMESTAMP_NS,
             Self::TimestampNtz(_) => DataType::TIMESTAMP_NTZ,
             Self::Date(_) => DataType::DATE,
             Self::Binary(_) => DataType::BINARY,
@@ -244,6 +247,7 @@ impl Display for Scalar {
             Self::String(s) => write!(f, "'{}'", s),
             Self::Boolean(b) => write!(f, "{}", b),
             Self::Timestamp(ts) => write!(f, "{}", ts),
+            Self::TimestampNs(ts) => write!(f, "{}", ts),
             Self::TimestampNtz(ts) => write!(f, "{}", ts),
             Self::Date(d) => write!(f, "{}", d),
             Self::Binary(b) => write!(f, "{:?}", b),
@@ -333,6 +337,8 @@ impl PartialOrd for Scalar {
             (Boolean(_), _) => None,
             (Timestamp(a), Timestamp(b)) => a.partial_cmp(b),
             (Timestamp(_), _) => None,
+            (TimestampNs(a), TimestampNs(b)) => a.partial_cmp(b),
+            (TimestampNs(_), _) => None,
             (TimestampNtz(a), TimestampNtz(b)) => a.partial_cmp(b),
             (TimestampNtz(_), _) => None,
             (Date(a), Date(b)) => a.partial_cmp(b),
@@ -525,6 +531,24 @@ impl PrimitiveType {
                 match self {
                     Timestamp => Ok(Scalar::Timestamp(micros)),
                     TimestampNtz => Ok(Scalar::TimestampNtz(micros)),
+                    _ => unreachable!(),
+                }
+            }
+            TimestampNs => {
+                let mut timestamp = NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S%.9f");
+
+                if timestamp.is_err() && *self == TimestampNs {
+                    // Note: `%+` specifies the ISO 8601 / RFC 3339 format
+                    timestamp = NaiveDateTime::parse_from_str(raw, "%+");
+                }
+                let timestamp = timestamp.map_err(|_| self.parse_error(raw))?;
+                let timestamp = Utc.from_utc_datetime(&timestamp);
+                let nanos = timestamp
+                    .signed_duration_since(DateTime::UNIX_EPOCH)
+                    .num_nanoseconds()
+                    .ok_or(self.parse_error(raw))?;
+                match self {
+                    TimestampNs => Ok(Scalar::TimestampNs(nanos)),
                     _ => unreachable!(),
                 }
             }
