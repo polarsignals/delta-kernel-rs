@@ -15,7 +15,7 @@ use crate::schema::{
     StructType,
 };
 
-pub(crate) const LIST_ARRAY_ROOT: &str = "element";
+pub(crate) const LIST_ARRAY_ROOT: &str = "item";
 pub(crate) const MAP_ROOT_DEFAULT: &str = "key_value";
 pub(crate) const MAP_KEY_DEFAULT: &str = "key";
 pub(crate) const MAP_VALUE_DEFAULT: &str = "value";
