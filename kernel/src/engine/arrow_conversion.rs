@@ -11,10 +11,11 @@ use itertools::Itertools;
 
 use crate::error::Error;
 use crate::schema::{
-    ArrayType, DataType, MapType, MetadataValue, PrimitiveType, StructField, StructType,
+    ArrayType, DataType, DictionaryType, MapType, MetadataValue, PrimitiveType, StructField,
+    StructType,
 };
 
-pub(crate) const LIST_ARRAY_ROOT: &str = "element";
+pub(crate) const LIST_ARRAY_ROOT: &str = "item";
 pub(crate) const MAP_ROOT_DEFAULT: &str = "key_value";
 pub(crate) const MAP_KEY_DEFAULT: &str = "key";
 pub(crate) const MAP_VALUE_DEFAULT: &str = "value";
@@ -91,6 +92,17 @@ impl TryFrom<&MapType> for ArrowField {
     }
 }
 
+impl TryFrom<&DictionaryType> for ArrowDataType {
+    type Error = ArrowError;
+
+    fn try_from(d: &DictionaryType) -> Result<Self, ArrowError> {
+        Ok(ArrowDataType::Dictionary(
+            Box::new(d.key_type().try_into()?),
+            Box::new(d.value_type().try_into()?),
+        ))
+    }
+}
+
 impl TryFrom<&DataType> for ArrowDataType {
     type Error = ArrowError;
 
@@ -100,9 +112,13 @@ impl TryFrom<&DataType> for ArrowDataType {
                 match p {
                     PrimitiveType::String => Ok(ArrowDataType::Utf8),
                     PrimitiveType::Long => Ok(ArrowDataType::Int64), // undocumented type
+                    PrimitiveType::ULong => Ok(ArrowDataType::UInt64),
                     PrimitiveType::Integer => Ok(ArrowDataType::Int32),
+                    PrimitiveType::UInteger => Ok(ArrowDataType::UInt32),
                     PrimitiveType::Short => Ok(ArrowDataType::Int16),
+                    PrimitiveType::UShort => Ok(ArrowDataType::UInt16),
                     PrimitiveType::Byte => Ok(ArrowDataType::Int8),
+                    PrimitiveType::UByte => Ok(ArrowDataType::UInt8),
                     PrimitiveType::Float => Ok(ArrowDataType::Float32),
                     PrimitiveType::Double => Ok(ArrowDataType::Float64),
                     PrimitiveType::Boolean => Ok(ArrowDataType::Boolean),
@@ -121,6 +137,10 @@ impl TryFrom<&DataType> for ArrowDataType {
                         TimeUnit::Microsecond,
                         Some("UTC".into()),
                     )),
+                    PrimitiveType::TimestampNs => Ok(ArrowDataType::Timestamp(
+                        TimeUnit::Nanosecond,
+                        Some("UTC".into()),
+                    )),
                     PrimitiveType::TimestampNtz => {
                         Ok(ArrowDataType::Timestamp(TimeUnit::Microsecond, None))
                     }
@@ -134,6 +154,15 @@ impl TryFrom<&DataType> for ArrowDataType {
             )),
             DataType::Array(a) => Ok(ArrowDataType::List(Arc::new(a.as_ref().try_into()?))),
             DataType::Map(m) => Ok(ArrowDataType::Map(Arc::new(m.as_ref().try_into()?), false)),
+            DataType::Dictionary(d) => {
+                let key_type = ArrowDataType::try_from(d.key_type())?;
+                let value_type = ArrowDataType::try_from(d.value_type())?;
+
+                Ok(ArrowDataType::Dictionary(
+                    Box::new(key_type),
+                    Box::new(value_type),
+                ))
+            }
         }
     }
 }
@@ -181,13 +210,13 @@ impl TryFrom<&ArrowDataType> for DataType {
             ArrowDataType::LargeUtf8 => Ok(DataType::STRING),
             ArrowDataType::Utf8View => Ok(DataType::STRING),
             ArrowDataType::Int64 => Ok(DataType::LONG), // undocumented type
+            ArrowDataType::UInt64 => Ok(DataType::ULONG),
             ArrowDataType::Int32 => Ok(DataType::INTEGER),
+            ArrowDataType::UInt32 => Ok(DataType::UINTEGER),
             ArrowDataType::Int16 => Ok(DataType::SHORT),
+            ArrowDataType::UInt16 => Ok(DataType::USHORT),
             ArrowDataType::Int8 => Ok(DataType::BYTE),
-            ArrowDataType::UInt64 => Ok(DataType::LONG), // undocumented type
-            ArrowDataType::UInt32 => Ok(DataType::INTEGER),
-            ArrowDataType::UInt16 => Ok(DataType::SHORT),
-            ArrowDataType::UInt8 => Ok(DataType::BYTE),
+            ArrowDataType::UInt8 => Ok(DataType::UBYTE),
             ArrowDataType::Float32 => Ok(DataType::FLOAT),
             ArrowDataType::Float64 => Ok(DataType::DOUBLE),
             ArrowDataType::Boolean => Ok(DataType::BOOLEAN),
@@ -211,6 +240,12 @@ impl TryFrom<&ArrowDataType> for DataType {
                 if tz.eq_ignore_ascii_case("utc") =>
             {
                 Ok(DataType::TIMESTAMP)
+            }
+            ArrowDataType::Timestamp(TimeUnit::Nanosecond, None) => Ok(DataType::TIMESTAMP_NS),
+            ArrowDataType::Timestamp(TimeUnit::Nanosecond, Some(tz))
+                if tz.eq_ignore_ascii_case("utc") =>
+            {
+                Ok(DataType::TIMESTAMP_NS)
             }
             ArrowDataType::Struct(fields) => {
                 DataType::try_struct_type(fields.iter().map(|field| field.as_ref().try_into()))
@@ -240,9 +275,11 @@ impl TryFrom<&ArrowDataType> for DataType {
                     panic!("DataType::Map should contain a struct field child");
                 }
             }
-            // Dictionary types are just an optimized in-memory representation of an array.
-            // Schema-wise, they are the same as the value type.
-            ArrowDataType::Dictionary(_, value_type) => Ok(value_type.as_ref().try_into()?),
+            ArrowDataType::Dictionary(key_type, value_type) => {
+                let key_type = DataType::try_from(&**key_type)?;
+                let value_type = DataType::try_from(&**value_type)?;
+                Ok(DictionaryType::new(key_type, value_type, true).into())
+            }
             s => Err(ArrowError::SchemaError(format!(
                 "Invalid data type for Delta Lake: {s}"
             ))),

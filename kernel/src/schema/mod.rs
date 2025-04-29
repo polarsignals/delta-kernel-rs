@@ -433,6 +433,50 @@ impl ArrayType {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct DictionaryType {
+    #[serde(rename = "type")]
+    pub type_name: String,
+    /// The type of element used for the indicies of this dictionary
+    pub index_type: DataType,
+    /// The type of element used for the values of this dictionary
+    pub value_type: DataType,
+    /// Denoting whether this dictionary can contain one or more null values
+    #[serde(default = "default_true")]
+    pub value_contains_null: bool,
+}
+
+impl DictionaryType {
+    pub fn new(
+        index_type: impl Into<DataType>,
+        value_type: impl Into<DataType>,
+        value_contains_null: bool,
+    ) -> Self {
+        Self {
+            type_name: "dictionary".into(),
+            index_type: index_type.into(),
+            value_type: value_type.into(),
+            value_contains_null,
+        }
+    }
+
+    #[inline]
+    pub const fn key_type(&self) -> &DataType {
+        &self.index_type
+    }
+
+    #[inline]
+    pub const fn value_type(&self) -> &DataType {
+        &self.value_type
+    }
+
+    #[inline]
+    pub const fn value_contains_null(&self) -> bool {
+        self.value_contains_null
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct MapType {
     #[serde(rename = "type")]
     pub type_name: String,
@@ -528,12 +572,20 @@ pub enum PrimitiveType {
     String,
     /// i64: 8-byte signed integer. Range: -9223372036854775808 to 9223372036854775807
     Long,
+    /// u64: 8-byte unsigned integer. Range: 0 to 18446744073709551615
+    ULong,
     /// i32: 4-byte signed integer. Range: -2147483648 to 2147483647
     Integer,
+    /// u32: 4-byte unsigned integer. Range: 0 to 4294967295
+    UInteger,
     /// i16: 2-byte signed integer numbers. Range: -32768 to 32767
     Short,
+    /// u16: 2-byte unsigned integer numbers. Range: 0 to 65535
+    UShort,
     /// i8: 1-byte signed integer number. Range: -128 to 127
     Byte,
+    /// u8: 1-byte unsigned integer number. Range: 0 to 255
+    UByte,
     /// f32: 4-byte single-precision floating-point numbers
     Float,
     /// f64: 8-byte double-precision floating-point numbers
@@ -544,6 +596,8 @@ pub enum PrimitiveType {
     Date,
     /// Microsecond precision timestamp, adjusted to UTC.
     Timestamp,
+    /// Nanosecond precision timestamp, adjusted to UTC.
+    TimestampNs,
     #[serde(rename = "timestamp_ntz")]
     TimestampNtz,
     #[serde(
@@ -598,15 +652,20 @@ impl Display for PrimitiveType {
         match self {
             PrimitiveType::String => write!(f, "string"),
             PrimitiveType::Long => write!(f, "long"),
+            PrimitiveType::ULong => write!(f, "ulong"),
             PrimitiveType::Integer => write!(f, "integer"),
+            PrimitiveType::UInteger => write!(f, "uinteger"),
             PrimitiveType::Short => write!(f, "short"),
+            PrimitiveType::UShort => write!(f, "ushort"),
             PrimitiveType::Byte => write!(f, "byte"),
+            PrimitiveType::UByte => write!(f, "ubyte"),
             PrimitiveType::Float => write!(f, "float"),
             PrimitiveType::Double => write!(f, "double"),
             PrimitiveType::Boolean => write!(f, "boolean"),
             PrimitiveType::Binary => write!(f, "binary"),
             PrimitiveType::Date => write!(f, "date"),
             PrimitiveType::Timestamp => write!(f, "timestamp"),
+            PrimitiveType::TimestampNs => write!(f, "timestamp_ns"),
             PrimitiveType::TimestampNtz => write!(f, "timestamp_ntz"),
             PrimitiveType::Decimal(dtype) => {
                 write!(f, "decimal({},{})", dtype.precision(), dtype.scale())
@@ -628,6 +687,8 @@ pub enum DataType {
     /// A map stores an arbitrary length collection of key-value pairs
     /// with a single keyType and a single valueType
     Map(Box<MapType>),
+    /// A dictionary stores a dictionary encoded column
+    Dictionary(Box<DictionaryType>),
 }
 
 impl From<DecimalType> for PrimitiveType {
@@ -669,19 +730,30 @@ impl From<SchemaRef> for DataType {
     }
 }
 
+impl From<DictionaryType> for DataType {
+    fn from(dict_type: DictionaryType) -> Self {
+        DataType::Dictionary(Box::new(dict_type))
+    }
+}
+
 /// cbindgen:ignore
 impl DataType {
     pub const STRING: Self = DataType::Primitive(PrimitiveType::String);
     pub const LONG: Self = DataType::Primitive(PrimitiveType::Long);
+    pub const ULONG: Self = DataType::Primitive(PrimitiveType::ULong);
     pub const INTEGER: Self = DataType::Primitive(PrimitiveType::Integer);
+    pub const UINTEGER: Self = DataType::Primitive(PrimitiveType::UInteger);
     pub const SHORT: Self = DataType::Primitive(PrimitiveType::Short);
+    pub const USHORT: Self = DataType::Primitive(PrimitiveType::UShort);
     pub const BYTE: Self = DataType::Primitive(PrimitiveType::Byte);
+    pub const UBYTE: Self = DataType::Primitive(PrimitiveType::UByte);
     pub const FLOAT: Self = DataType::Primitive(PrimitiveType::Float);
     pub const DOUBLE: Self = DataType::Primitive(PrimitiveType::Double);
     pub const BOOLEAN: Self = DataType::Primitive(PrimitiveType::Boolean);
     pub const BINARY: Self = DataType::Primitive(PrimitiveType::Binary);
     pub const DATE: Self = DataType::Primitive(PrimitiveType::Date);
     pub const TIMESTAMP: Self = DataType::Primitive(PrimitiveType::Timestamp);
+    pub const TIMESTAMP_NS: Self = DataType::Primitive(PrimitiveType::TimestampNs);
     pub const TIMESTAMP_NTZ: Self = DataType::Primitive(PrimitiveType::TimestampNtz);
 
     pub fn decimal(precision: u8, scale: u8) -> DeltaResult<Self> {
@@ -727,6 +799,7 @@ impl Display for DataType {
                 write!(f, ">")
             }
             DataType::Map(m) => write!(f, "map<{}, {}>", m.key_type, m.value_type),
+            DataType::Dictionary(d) => write!(f, "dictionary<{}, {}>", d.index_type, d.value_type),
         }
     }
 }
@@ -797,6 +870,25 @@ pub trait SchemaTransform<'a> {
         self.transform(etype)
     }
 
+    fn transform_dictionary(
+        &mut self,
+        dtype: &'a DictionaryType,
+    ) -> Option<Cow<'a, DictionaryType>> {
+        self.transform(&dtype.index_type)
+            .and_then(|key_type| {
+                self.transform(&dtype.value_type)
+                    .map(|value_type| (key_type, value_type))
+            })
+            .map(|(key_type, value_type)| {
+                Cow::Owned(DictionaryType {
+                    type_name: dtype.type_name.clone(),
+                    index_type: key_type.into_owned(),
+                    value_type: value_type.into_owned(),
+                    value_contains_null: dtype.value_contains_null,
+                })
+            })
+    }
+
     /// General entry point for a recursive traversal over any data type. Also invoked internally to
     /// dispatch on nested data types encountered during the traversal.
     fn transform(&mut self, data_type: &'a DataType) -> Option<Cow<'a, DataType>> {
@@ -818,6 +910,7 @@ pub trait SchemaTransform<'a> {
             Array(atype) => apply_transform!(transform_array, atype),
             Struct(stype) => apply_transform!(transform_struct, stype),
             Map(mtype) => apply_transform!(transform_map, mtype),
+            Dictionary(dtype) => apply_transform!(transform_dictionary, dtype),
         }
     }
 

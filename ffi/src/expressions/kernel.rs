@@ -333,6 +333,13 @@ fn visit_expression_scalar(
             visit_expression_struct_literal(visitor, struct_data, sibling_list_id)
         }
         Scalar::Array(array) => visit_expression_array(visitor, array, sibling_list_id),
+        Scalar::UByte(_)
+        | Scalar::UInteger(_)
+        | Scalar::ULong(_)
+        | Scalar::UShort(_)
+        | Scalar::TimestampNs(_) => {
+            unimplemented!("Unsupported scalar type")
+        }
     }
 }
 

@@ -139,12 +139,20 @@ impl StructData {
 pub enum Scalar {
     /// 32bit integer
     Integer(i32),
+    /// 32bit unsigned integer
+    UInteger(u32),
     /// 64bit integer
     Long(i64),
+    /// 64bit unsigned integer
+    ULong(u64),
     /// 16bit integer
     Short(i16),
+    /// 16bit unsigned integer
+    UShort(u16),
     /// 8bit integer
     Byte(i8),
+    /// 8bit unsigned integer
+    UByte(u8),
     /// 32bit floating point
     Float(f32),
     /// 64bit floating point
@@ -155,6 +163,8 @@ pub enum Scalar {
     Boolean(bool),
     /// Microsecond precision timestamp, adjusted to UTC.
     Timestamp(i64),
+    // Nanosecond precision timestamp, adjusted to UTC.
+    TimestampNs(i64),
     /// Microsecond precision timestamp, with no timezone.
     TimestampNtz(i64),
     /// Date stored as a signed 32bit int days since UNIX epoch 1970-01-01
@@ -175,14 +185,19 @@ impl Scalar {
     pub fn data_type(&self) -> DataType {
         match self {
             Self::Integer(_) => DataType::INTEGER,
+            Self::UInteger(_) => DataType::UINTEGER,
             Self::Long(_) => DataType::LONG,
+            Self::ULong(_) => DataType::ULONG,
             Self::Short(_) => DataType::SHORT,
+            Self::UShort(_) => DataType::USHORT,
             Self::Byte(_) => DataType::BYTE,
+            Self::UByte(_) => DataType::UBYTE,
             Self::Float(_) => DataType::FLOAT,
             Self::Double(_) => DataType::DOUBLE,
             Self::String(_) => DataType::STRING,
             Self::Boolean(_) => DataType::BOOLEAN,
             Self::Timestamp(_) => DataType::TIMESTAMP,
+            Self::TimestampNs(_) => DataType::TIMESTAMP_NS,
             Self::TimestampNtz(_) => DataType::TIMESTAMP_NTZ,
             Self::Date(_) => DataType::DATE,
             Self::Binary(_) => DataType::BINARY,
@@ -220,14 +235,19 @@ impl Display for Scalar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Integer(i) => write!(f, "{}", i),
+            Self::UInteger(i) => write!(f, "{}", i),
             Self::Long(i) => write!(f, "{}", i),
+            Self::ULong(i) => write!(f, "{}", i),
             Self::Short(i) => write!(f, "{}", i),
+            Self::UShort(i) => write!(f, "{}", i),
             Self::Byte(i) => write!(f, "{}", i),
+            Self::UByte(i) => write!(f, "{}", i),
             Self::Float(fl) => write!(f, "{}", fl),
             Self::Double(fl) => write!(f, "{}", fl),
             Self::String(s) => write!(f, "'{}'", s),
             Self::Boolean(b) => write!(f, "{}", b),
             Self::Timestamp(ts) => write!(f, "{}", ts),
+            Self::TimestampNs(ts) => write!(f, "{}", ts),
             Self::TimestampNtz(ts) => write!(f, "{}", ts),
             Self::Date(d) => write!(f, "{}", d),
             Self::Binary(b) => write!(f, "{:?}", b),
@@ -293,12 +313,20 @@ impl PartialOrd for Scalar {
             // that new variants trigger compilation failures instead of being silently ignored.
             (Integer(a), Integer(b)) => a.partial_cmp(b),
             (Integer(_), _) => None,
+            (UInteger(a), UInteger(b)) => a.partial_cmp(b),
+            (UInteger(_), _) => None,
             (Long(a), Long(b)) => a.partial_cmp(b),
             (Long(_), _) => None,
+            (ULong(a), ULong(b)) => a.partial_cmp(b),
+            (ULong(_), _) => None,
             (Short(a), Short(b)) => a.partial_cmp(b),
             (Short(_), _) => None,
+            (UShort(a), UShort(b)) => a.partial_cmp(b),
+            (UShort(_), _) => None,
             (Byte(a), Byte(b)) => a.partial_cmp(b),
             (Byte(_), _) => None,
+            (UByte(a), UByte(b)) => a.partial_cmp(b),
+            (UByte(_), _) => None,
             (Float(a), Float(b)) => a.partial_cmp(b),
             (Float(_), _) => None,
             (Double(a), Double(b)) => a.partial_cmp(b),
@@ -309,6 +337,8 @@ impl PartialOrd for Scalar {
             (Boolean(_), _) => None,
             (Timestamp(a), Timestamp(b)) => a.partial_cmp(b),
             (Timestamp(_), _) => None,
+            (TimestampNs(a), TimestampNs(b)) => a.partial_cmp(b),
+            (TimestampNs(_), _) => None,
             (TimestampNtz(a), TimestampNtz(b)) => a.partial_cmp(b),
             (TimestampNtz(_), _) => None,
             (Date(a), Date(b)) => a.partial_cmp(b),
@@ -332,9 +362,21 @@ impl From<i8> for Scalar {
     }
 }
 
+impl From<u8> for Scalar {
+    fn from(i: u8) -> Self {
+        Self::UByte(i)
+    }
+}
+
 impl From<i16> for Scalar {
     fn from(i: i16) -> Self {
         Self::Short(i)
+    }
+}
+
+impl From<u16> for Scalar {
+    fn from(i: u16) -> Self {
+        Self::UShort(i)
     }
 }
 
@@ -344,9 +386,21 @@ impl From<i32> for Scalar {
     }
 }
 
+impl From<u32> for Scalar {
+    fn from(i: u32) -> Self {
+        Self::UInteger(i)
+    }
+}
+
 impl From<i64> for Scalar {
     fn from(i: i64) -> Self {
         Self::Long(i)
+    }
+}
+
+impl From<u64> for Scalar {
+    fn from(i: u64) -> Self {
+        Self::ULong(i)
     }
 }
 
@@ -425,10 +479,14 @@ impl PrimitiveType {
             String => Ok(Scalar::String(raw.to_string())),
             Binary => Ok(Scalar::Binary(raw.to_string().into_bytes())),
             Byte => self.parse_str_as_scalar(raw, Scalar::Byte),
+            UByte => self.parse_str_as_scalar(raw, Scalar::UByte),
             Decimal(dtype) => Self::parse_decimal(raw, *dtype),
             Short => self.parse_str_as_scalar(raw, Scalar::Short),
+            UShort => self.parse_str_as_scalar(raw, Scalar::UShort),
             Integer => self.parse_str_as_scalar(raw, Scalar::Integer),
+            UInteger => self.parse_str_as_scalar(raw, Scalar::UInteger),
             Long => self.parse_str_as_scalar(raw, Scalar::Long),
+            ULong => self.parse_str_as_scalar(raw, Scalar::ULong),
             Float => self.parse_str_as_scalar(raw, Scalar::Float),
             Double => self.parse_str_as_scalar(raw, Scalar::Double),
             Boolean => {
@@ -473,6 +531,24 @@ impl PrimitiveType {
                 match self {
                     Timestamp => Ok(Scalar::Timestamp(micros)),
                     TimestampNtz => Ok(Scalar::TimestampNtz(micros)),
+                    _ => unreachable!(),
+                }
+            }
+            TimestampNs => {
+                let mut timestamp = NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S%.9f");
+
+                if timestamp.is_err() && *self == TimestampNs {
+                    // Note: `%+` specifies the ISO 8601 / RFC 3339 format
+                    timestamp = NaiveDateTime::parse_from_str(raw, "%+");
+                }
+                let timestamp = timestamp.map_err(|_| self.parse_error(raw))?;
+                let timestamp = Utc.from_utc_datetime(&timestamp);
+                let nanos = timestamp
+                    .signed_duration_since(DateTime::UNIX_EPOCH)
+                    .num_nanoseconds()
+                    .ok_or(self.parse_error(raw))?;
+                match self {
+                    TimestampNs => Ok(Scalar::TimestampNs(nanos)),
                     _ => unreachable!(),
                 }
             }
