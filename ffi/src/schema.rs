@@ -1,9 +1,8 @@
-use std::os::raw::c_void;
-
 use crate::handle::Handle;
 use crate::scan::CStringMap;
 use crate::{kernel_string_slice, KernelStringSlice, SharedSchema};
 use delta_kernel::schema::{ArrayType, DataType, MapType, PrimitiveType, StructType};
+use std::os::raw::c_void;
 
 /// The `EngineSchemaVisitor` defines a visitor system to allow engines to build their own
 /// representation of a schema from a particular schema within kernel.
@@ -318,6 +317,14 @@ fn visit_schema_impl(schema: &StructType, visitor: &mut EngineSchemaVisitor) -> 
             &DataType::DATE => call!(visit_date),
             &DataType::TIMESTAMP => call!(visit_timestamp),
             &DataType::TIMESTAMP_NTZ => call!(visit_timestamp_ntz),
+            &DataType::UBYTE
+            | &DataType::UINTEGER
+            | &DataType::ULONG
+            | &DataType::USHORT
+            | &DataType::TIMESTAMP_NS
+            | &DataType::Dictionary(_) => {
+                unimplemented!("Unsupported scalar type")
+            }
         }
     }
 

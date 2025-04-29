@@ -1,16 +1,16 @@
 //! Expression handling based on arrow-rs compute kernels.
-use std::sync::Arc;
-
 use crate::arrow::array::{
     Array, ArrayRef, BinaryArray, BooleanArray, Date32Array, Decimal128Array, Float32Array,
     Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, ListArray, RecordBatch,
-    StringArray, StructArray, TimestampMicrosecondArray,
+    StringArray, StructArray, TimestampMicrosecondArray, TimestampNanosecondArray, UInt16Array,
+    UInt32Array, UInt64Array, UInt8Array,
 };
 use crate::arrow::buffer::OffsetBuffer;
 use crate::arrow::compute::concat;
 use crate::arrow::datatypes::{
     DataType as ArrowDataType, Field as ArrowField, Fields, Schema as ArrowSchema,
 };
+use std::sync::Arc;
 
 use super::arrow_conversion::LIST_ARRAY_ROOT;
 use crate::engine::arrow_data::ArrowEngineData;
@@ -32,22 +32,28 @@ mod evaluate_expression;
 mod tests;
 
 // TODO leverage scalars / Datum
-
 impl Scalar {
     /// Convert scalar to arrow array.
     pub fn to_array(&self, num_rows: usize) -> DeltaResult<ArrayRef> {
         use Scalar::*;
         let arr: ArrayRef = match self {
             Integer(val) => Arc::new(Int32Array::from_value(*val, num_rows)),
+            UInteger(val) => Arc::new(UInt32Array::from_value(*val, num_rows)),
             Long(val) => Arc::new(Int64Array::from_value(*val, num_rows)),
+            ULong(val) => Arc::new(UInt64Array::from_value(*val, num_rows)),
             Short(val) => Arc::new(Int16Array::from_value(*val, num_rows)),
+            UShort(val) => Arc::new(UInt16Array::from_value(*val, num_rows)),
             Byte(val) => Arc::new(Int8Array::from_value(*val, num_rows)),
+            UByte(val) => Arc::new(UInt8Array::from_value(*val, num_rows)),
             Float(val) => Arc::new(Float32Array::from_value(*val, num_rows)),
             Double(val) => Arc::new(Float64Array::from_value(*val, num_rows)),
             String(val) => Arc::new(StringArray::from(vec![val.clone(); num_rows])),
             Boolean(val) => Arc::new(BooleanArray::from(vec![*val; num_rows])),
             Timestamp(val) => {
                 Arc::new(TimestampMicrosecondArray::from_value(*val, num_rows).with_timezone("UTC"))
+            }
+            TimestampNs(val) => {
+                Arc::new(TimestampNanosecondArray::from_value(*val, num_rows).with_timezone("UTC"))
             }
             TimestampNtz(val) => Arc::new(TimestampMicrosecondArray::from_value(*val, num_rows)),
             Date(val) => Arc::new(Date32Array::from_value(*val, num_rows)),
@@ -85,15 +91,22 @@ impl Scalar {
                 ))
             }
             Null(DataType::BYTE) => Arc::new(Int8Array::new_null(num_rows)),
+            Null(DataType::UBYTE) => Arc::new(UInt8Array::new_null(num_rows)),
             Null(DataType::SHORT) => Arc::new(Int16Array::new_null(num_rows)),
+            Null(DataType::USHORT) => Arc::new(UInt16Array::new_null(num_rows)),
             Null(DataType::INTEGER) => Arc::new(Int32Array::new_null(num_rows)),
+            Null(DataType::UINTEGER) => Arc::new(UInt32Array::new_null(num_rows)),
             Null(DataType::LONG) => Arc::new(Int64Array::new_null(num_rows)),
+            Null(DataType::ULONG) => Arc::new(UInt64Array::new_null(num_rows)),
             Null(DataType::FLOAT) => Arc::new(Float32Array::new_null(num_rows)),
             Null(DataType::DOUBLE) => Arc::new(Float64Array::new_null(num_rows)),
             Null(DataType::STRING) => Arc::new(StringArray::new_null(num_rows)),
             Null(DataType::BOOLEAN) => Arc::new(BooleanArray::new_null(num_rows)),
             Null(DataType::TIMESTAMP) => {
                 Arc::new(TimestampMicrosecondArray::new_null(num_rows).with_timezone("UTC"))
+            }
+            Null(DataType::TIMESTAMP_NS) => {
+                Arc::new(TimestampNanosecondArray::new_null(num_rows).with_timezone("UTC"))
             }
             Null(DataType::TIMESTAMP_NTZ) => {
                 Arc::new(TimestampMicrosecondArray::new_null(num_rows))
@@ -115,6 +128,11 @@ impl Scalar {
             Null(DataType::Map { .. }) => {
                 return Err(Error::unsupported(
                     "Scalar::to_array does not yet support Map types",
+                ));
+            }
+            Null(DataType::Dictionary { .. }) => {
+                return Err(Error::unsupported(
+                    "Scalar::to_array does not yet support Dictionary types",
                 ));
             }
         };
