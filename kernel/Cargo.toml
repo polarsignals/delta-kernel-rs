@@ -81,12 +81,14 @@ optional = true
 # arrow 55
 [dependencies.arrow_55]
 package = "arrow"
-version = "55"
+git = "https://github.com/polarsignals/arrow-rs"
+rev = "4c1da06"
 features = ["chrono-tz", "ffi", "json", "prettyprint"]
 optional = true
 [dependencies.parquet_55]
 package = "parquet"
-version = "55"
+git = "https://github.com/polarsignals/arrow-rs"
+rev = "4c1da06"
 features = ["async", "object_store"]
 optional = true
 [dependencies.object_store_55]
